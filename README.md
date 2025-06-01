@@ -24,4 +24,5 @@ RAG with MCP
 ## Document Chunk
 
 
-![Uploading image.png…]()
+<img width="1262" alt="image" src="https://github.com/user-attachments/assets/887dcd5c-f3e2-4a92-846e-e5a8c8aae278" />
+
