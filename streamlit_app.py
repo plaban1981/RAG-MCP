@@ -3,8 +3,16 @@ import asyncio
 from langchain_client import LangchainMCPClient
 import logging
 from streamlit.runtime.scriptrunner import add_script_run_ctx
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+import os
+load_dotenv()
 import sys
-
+#
+llm = ChatGroq(model="llama-3.1-8b-instant",
+               temperature=0.5,
+               max_tokens=2000,
+               )
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -47,38 +55,47 @@ async def process_query(query: str):
                 # Handle dictionary response from MCP server
                 if isinstance(response, dict):
                     search_results = response.get("search_results", "No search results")
-                    print(f"Search Results: {search_results}")
                     rag_analysis = response.get("rag_analysis", [])
-                    print(f"RAG Analysis: {rag_analysis}")
                     
-                    # Format RAG analysis
-                    analysis_text = "Analysis:\n\n"
+                    # Enhanced RAG Analysis formatting
+                    analysis_text = f"# Analysis: {query}\n\n"
+                    
                     if rag_analysis:
-                        # Add overview
-                        analysis_text += f"Based on the search results, here's an {query}:\n\n"
-                        
-                        # Extract key points from RAG analysis
                         key_points = []
+                        main_findings = []
+                        
                         for item in rag_analysis:
                             content = item.get("content", "")
                             source = item.get("metadata", {}).get("source", "")
                             
-                            # Extract meaningful sentences and add as bullet points
-                            sentences = [s.strip() for s in content.split('.') if len(s.strip()) > 20]
-                            for sentence in sentences[:3]:  # Take first 3 meaningful sentences
-                                if sentence and not sentence.startswith('Sign') and not sentence.startswith('Open'):
-                                    key_points.append(f"• {sentence} (Source: [{source}]({source}))")
+                            # Extract meaningful sentences
+                            sentences = [s.strip() for s in content.split('.') 
+                                       if len(s.strip()) > 20 and 
+                                       not s.strip().startswith(('Sign', 'Open', 'Listen'))]
+                            
+                            for sentence in sentences[:3]:  # Take top 3 meaningful sentences
+                                if sentence:
+                                    key_points.append({
+                                        "point": sentence,
+                                        "source": source
+                                    })
                         
-                        # Add key points to analysis
-                        analysis_text += "\nKey Points:\n\n"
-                        analysis_text += "\n\n".join(key_points)
+                        # Group similar points and create a coherent response
+                        analysis_text += "## Key Information\n\n"
                         
-                        # Add sources section
-                        analysis_text += "\n\nSources:\n"
-                        sources = set(item.get("metadata", {}).get("source", "") for item in rag_analysis)
-                        for source in sources:
-                            if source:
-                                analysis_text += f"\n• [{source}]({source})"
+                        # Format key points into a narrative
+                        for idx, point in enumerate(key_points, 1):
+                            analysis_text += f"{idx}. {point['point']}\n"
+                            analysis_text += f"   *[Source]({point['source']})*\n\n"
+                        
+                        # Add a concise summary
+                        analysis_text += "\n## Summary\n"
+                        analysis_text += "Based on the analyzed sources:\n"
+                        analysis_text += "\n".join([f"- {point['point'].split(',')[0]}." for point in key_points[:3]])
+                        
+                    else:
+                        analysis_text += "\n⚠️ No detailed analysis available for this query.\n"
+                        analysis_text += "Please try refining your search terms.\n"
                     
                     return search_results, analysis_text, rag_analysis
                     
@@ -150,7 +167,7 @@ if query:
         progress_bar.progress(25)
         
         # Process the query
-        search_results, analysis, chunks = asyncio.run(process_query(query))
+        search_results, analysis_text, chunks = asyncio.run(process_query(query))
         logger.info(f"Received response from agent")
         
         progress_bar.progress(75)
@@ -174,11 +191,41 @@ if query:
             
             # Display RAG analysis in tab 2
             with tab2:
-                if analysis and analysis != "No analysis available":
-                    st.markdown(analysis)
-                    logger.info("Displayed RAG analysis")
+                if analysis_text and analysis_text != "No analysis available":
+                    # Add a download button for the analysis
+                    st.download_button(
+                        label="📥 Download Analysis",
+                        data=analysis_text,
+                        file_name="rag_analysis.md",
+                        mime="text/markdown"
+                    )
+                    
+                    # Display the formatted analysis
+                    prompt = f"""Based on the ANALYSIS Provided below please provide a clear and detailed response for the QUESTION asked.
+                    QUESTION: {query}
+                    ANALYSIS: {analysis_text}
+                    Please stick to the ANALYSIS.Donot Make up your Own Answer.If you don't know the answer, just say "I don't know".
+                    STRICTLY PROVIDE THE ANSWER IN MARKDOWN FORMAT.
+                    """
+                    analysis_text_response = llm.invoke(prompt)
+                    st.markdown(analysis_text_response.content)
+                    
+                    # Add interaction options
+                    if st.button("🔄 Regenerate Analysis"):
+                        st.experimental_rerun()
+                    
+                    # Add feedback section
+                    st.write("---")
+                    st.write("📢 Was this analysis helpful?")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.button("👍 Yes")
+                    with col2:
+                        st.button("👎 No")
+                    with col3:
+                        st.button("💡 Suggest Improvement")
                 else:
-                    st.warning("No RAG analysis available for this query")
+                    st.warning("No RAG analysis available")
             
             # Display document chunks in tab 3
             with tab3:
