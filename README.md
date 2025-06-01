@@ -11,18 +11,21 @@ RAG with MCP
 ## Search Results
 
 
-<img width="1257" alt="image" src="https://github.com/user-attachments/assets/01d36379-8d22-4510-a79d-cdcfda5f4fd1" />
+<img width="1253" alt="image" src="https://github.com/user-attachments/assets/f0b642b6-f795-45d1-aba1-7f3493e62822" />
+
 
 
 
 ## RAG analysis 
 
 
-<img width="1261" alt="image" src="https://github.com/user-attachments/assets/171e2dcf-364e-400d-8be1-e60e5cea552d" />
+<img width="1250" alt="image" src="https://github.com/user-attachments/assets/0115d097-278e-48e9-888e-ed54abcaa1d9" />
+
 
 
 ## Document Chunk
 
 
-<img width="1262" alt="image" src="https://github.com/user-attachments/assets/887dcd5c-f3e2-4a92-846e-e5a8c8aae278" />
+<img width="1279" alt="image" src="https://github.com/user-attachments/assets/f82af26f-24eb-4973-8c4a-cd48f5ca22f4" />
+
 
